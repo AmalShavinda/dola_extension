@@ -118,7 +118,8 @@
     <textarea id="promptInput" data-testid="prompt-input" rows="3"
       placeholder="Enter video generation prompt..."></textarea>
     <div style="margin-top: 10px;">
-      <button id="btnGenerate">Submit Generation Request</button>
+      <button id="btnGenerate">Submit Generation Request (Test 30s Override)</button>
+      <button id="btnSimulateVideo">Simulate Clean Video Response</button>
     </div>
   </div>
 
@@ -182,20 +183,36 @@
       xhr.send();
     };
 
-    // 3. Generate Request
+    // 3. Generate Request (Standard 15s request to verify 30s override)
     document.getElementById("btnGenerate").onclick = async () => {
-      const prompt = document.getElementById("promptInput").value;
-      log("Submitting generation request to /api/generate...");
+      const prompt = document.getElementById("promptInput").value || "Cinematic 30s shot on 35mm anamorphic";
+      log("Submitting request with duration: 15, resolution: 720p, model: seedance-2.0...");
       try {
+        const payload = { prompt, duration: 15, resolution: "720p", model: "seedance-2.0", watermark: true };
+        console.log("Original client payload before fetch:", JSON.stringify(payload));
         const res = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt, duration: 30, resolution: "1080p" }),
+          body: JSON.stringify(payload),
         });
         const data = await res.json();
         log(data);
       } catch (err) {
         log("Generation Error: " + err.message);
+      }
+    };
+
+    // 4. Test Clean Video Stream Extraction
+    document.getElementById("btnSimulateVideo").onclick = async () => {
+      log("Simulating API response containing clean unwatermarked video URL...");
+      try {
+        const res = await fetch("/api/task/result", {
+          headers: { "Content-Type": "application/json" }
+        });
+        const data = await res.json();
+        log(data);
+      } catch (err) {
+        log("Result fetch error: " + err.message);
       }
     };
   </script>

@@ -2,69 +2,218 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="description" content="hello_dola — Security Testing Harness & HEVC Decoder">
+  <meta name="description" content="Dola AI Pro — 30s HD Video Generator & Issue Fix (ShamodPro v3)">
   <link rel="stylesheet" href="popup.css">
-  <title>Security Testing & HEVC Harness</title>
+  <title>Dola AI Pro 30s Video Generator</title>
 </head>
 <body>
 
   <!-- ── Header ─────────────────────────────────── -->
   <header>
     <div class="brand">
-      <span class="brand-icon">🛡️</span>
-      <h1>Security Harness</h1>
+      <span class="brand-icon">⚡</span>
+      <div>
+        <h1>Dola AI Pro</h1>
+        <div class="brand-sub">ShamodPro v3 · Seedance 2.5</div>
+      </div>
     </div>
-    <span class="security-badge" id="harnessStatusBadge">OBSERVE MODE</span>
+    <span class="security-badge active" id="engineStatusBadge">30s ACTIVE</span>
   </header>
 
-  <!-- ── Security Test Mode Banner ──────────────── -->
-  <section class="test-mode-card" id="testModeCard">
-    <div class="test-mode-row">
-      <div class="test-mode-left">
-        <label class="toggle-label" for="harnessMasterToggle">
-          <input type="checkbox" id="harnessMasterToggle" checked>
-          <span class="toggle-track"><span class="toggle-thumb"></span></span>
-          <span class="toggle-text">Interception Active</span>
-        </label>
-      </div>
-      <select id="harnessModeSelect" class="harness-select" title="Interception Mode">
-        <option value="observe">Mode: Observe (Read-only)</option>
-        <option value="modify">Mode: Modify (Mock Scenarios)</option>
-        <option value="disabled">Mode: Disabled</option>
-      </select>
-    </div>
-    <div class="test-mode-banner" id="testModeBanner">
-      SECURITY TEST MODE — Localhost / 127.0.0.1 Authorized Targets Only
+  <!-- ── Pro Toggles Panel ───────────────────────── -->
+  <section class="toggles-card">
+    <div class="toggle-grid">
+      <label class="pro-toggle" title="Override request duration to 30 seconds">
+        <input type="checkbox" id="toggle30s" checked>
+        <span class="switch"><span class="knob"></span></span>
+        <span class="lbl-wrap">
+          <span class="lbl-title">30s Video Mode</span>
+          <span class="lbl-sub">Force 30s duration</span>
+        </span>
+      </label>
+
+      <label class="pro-toggle" title="Strictly enforce 1080p Full HD resolution">
+        <input type="checkbox" id="toggle1080p" checked>
+        <span class="switch"><span class="knob"></span></span>
+        <span class="lbl-wrap">
+          <span class="lbl-title">Strict 1080p Mode</span>
+          <span class="lbl-sub">Force 1080p / Full HD</span>
+        </span>
+      </label>
+
+      <label class="pro-toggle" title="Auto-retry on High Demand & Server Busy rejections">
+        <input type="checkbox" id="toggleHighDemand" checked>
+        <span class="switch"><span class="knob"></span></span>
+        <span class="lbl-wrap">
+          <span class="lbl-title">High Demand Fix</span>
+          <span class="lbl-sub">Auto-retry on 429/busy</span>
+        </span>
+      </label>
+
+      <label class="pro-toggle" title="Extract clean MP4 and strip watermark parameter">
+        <input type="checkbox" id="toggleNoWatermark" checked>
+        <span class="switch"><span class="knob"></span></span>
+        <span class="lbl-wrap">
+          <span class="lbl-title">No Watermark</span>
+          <span class="lbl-sub">Clean MP4 stream</span>
+        </span>
+      </label>
+
+      <label class="pro-toggle" title="Prioritize Seedance 2.5 model generation">
+        <input type="checkbox" id="toggleSeedance" checked>
+        <span class="switch"><span class="knob"></span></span>
+        <span class="lbl-wrap">
+          <span class="lbl-title">Seedance 2.5</span>
+          <span class="lbl-sub">HD photorealism</span>
+        </span>
+      </label>
     </div>
   </section>
 
-  <!-- ── Tabs ───────────────────────────────────── -->
+  <!-- ── Navigation Tabs ────────────────────────── -->
   <div class="tabs" role="tablist">
-    <button class="tab active" id="tab-traffic" role="tab" aria-selected="true"  data-tab="traffic">Traffic <span class="tab-count" id="trafficCount">0</span></button>
-    <button class="tab"        id="tab-simulate" role="tab" aria-selected="false" data-tab="simulate">Simulate</button>
-    <button class="tab"        id="tab-hevc"     role="tab" aria-selected="false" data-tab="hevc">HEVC Decode</button>
-    <button class="tab"        id="tab-queue"    role="tab" aria-selected="false" data-tab="queue">Queue</button>
-    <button class="tab"        id="tab-audit"    role="tab" aria-selected="false" data-tab="audit">Audit Log</button>
+    <button class="tab active" id="tab-prompts"   role="tab" aria-selected="true"  data-tab="prompts">30s Prompts</button>
+    <button class="tab"        id="tab-videos"    role="tab" aria-selected="false" data-tab="videos">Videos <span class="tab-count" id="videoCount">0</span></button>
+    <button class="tab"        id="tab-hevc"      role="tab" aria-selected="false" data-tab="hevc">HEVC Decode</button>
+    <button class="tab"        id="tab-traffic"   role="tab" aria-selected="false" data-tab="traffic">Traffic <span class="tab-count" id="trafficCount">0</span></button>
+    <button class="tab"        id="tab-guide"     role="tab" aria-selected="false" data-tab="guide">Guide & Fix</button>
   </div>
 
-  <!-- ── Tab 1: Traffic Log ─────────────────────── -->
-  <div class="tab-pane active" id="pane-traffic">
+  <!-- ── Tab 1: 30s Cinematic Prompt Engine ──────── -->
+  <div class="tab-pane active" id="pane-prompts">
+    <div class="prompt-section">
+      <div class="section-title-row">
+        <span class="section-hint">Cinematic 30s Multi-Beat Arc (from SKILL.md)</span>
+        <select id="presetSelect" class="small-select" title="Load Preset">
+          <option value="">⚡ Load Preset...</option>
+          <option value="stage_flourish">Stage Performer / Card Flourish (Filter-Safe)</option>
+          <option value="hollywood">Hollywood 35mm Anamorphic</option>
+          <option value="steadicam">Steadicam Golden Hour Wanderer</option>
+          <option value="macro">Macro Probe Sizzle / Commercial</option>
+          <option value="cyberpunk">Cyberpunk Orbital Tracking</option>
+          <option value="nature">Epic Misty Mountain Valley</option>
+        </select>
+      </div>
+
+      <!-- 3-Beat Narrative Arc Input -->
+      <div class="beat-inputs">
+        <div class="beat-field">
+          <span class="beat-tag">0–8s Establish</span>
+          <input type="text" id="beat1Input" placeholder="Wide establishing, lighting, lens optics, and subject..." />
+        </div>
+        <div class="beat-field">
+          <span class="beat-tag">8–22s Core Action</span>
+          <input type="text" id="beat2Input" placeholder="Paced physical action, slow tracking camera push-in..." />
+        </div>
+        <div class="beat-field">
+          <span class="beat-tag">22–30s Resolve</span>
+          <input type="text" id="beat3Input" placeholder="Cinematic pull-back, atmospheric resolution, lighting settle..." />
+        </div>
+      </div>
+
+      <!-- Generated Prompt Preview -->
+      <div class="output-block">
+        <div class="output-header">
+          <span>Combined 30s Master Prompt:</span>
+          <button id="buildPromptBtn" class="pill-btn">Rebuild</button>
+        </div>
+        <textarea id="masterPromptPreview" rows="4" placeholder="Your assembled 30-second cinematic prompt appears here..."></textarea>
+      </div>
+
+      <div class="prompt-actions-bar">
+        <button id="insertDolaBtn" class="primary-btn">⚡ Insert into Dola AI</button>
+        <button id="copyPromptBtn" class="secondary-btn">📋 Copy Prompt</button>
+        <button id="addQueueBtn" class="pill-btn">+ Add to Queue</button>
+      </div>
+      <p id="promptMsg" class="status-msg"></p>
+
+      <!-- Queue Accordion -->
+      <div class="queue-accordion">
+        <div class="queue-header-row">
+          <span id="queueProgress">Queue (0 items)</span>
+          <button id="clearQueueBtn" class="link-btn">Clear</button>
+        </div>
+        <ul id="queueList" class="compact-queue"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tab 2: Captured Videos ──────────────────── -->
+  <div class="tab-pane" id="pane-videos">
     <div class="pane-actions">
-      <span class="section-hint">Live intercepted fetch/XHR network traffic.</span>
+      <span class="section-hint">Auto-captured unwatermarked video streams from Dola AI.</span>
+      <button id="clearVideosBtn" class="pill-btn">Clear All</button>
+    </div>
+    <div class="videos-list" id="videosList">
+      <div class="empty-state">No videos intercepted yet. Generate a video on Dola AI to capture the clean stream.</div>
+    </div>
+  </div>
+
+  <!-- ── Tab 3: HEVC Extractor & Decoder ────────── -->
+  <div class="tab-pane" id="pane-hevc">
+    <span class="section-hint">Inspect HEVC (H.265) containers & decode video frames with WebCodecs API.</span>
+
+    <div class="hevc-upload-box">
+      <input type="file" id="hevcFileInput" accept=".mp4,.h265,.hevc">
+      <label for="hevcFileInput" class="file-label">Choose MP4 / HEVC Video...</label>
+    </div>
+
+    <div id="hevcMetadataCard" class="hevc-meta-card" style="display: none;">
+      <div class="hevc-meta-header">
+        <span class="tpl-tag t2v" id="hevcCodecBadge">HVC1</span>
+        <span id="hevcWebCodecsStatus" class="mode-badge">Checking WebCodecs...</span>
+      </div>
+      <table class="meta-table">
+        <tr><td>Resolution:</td><td id="metaRes" class="mono-text">—</td></tr>
+        <tr><td>Profile & Tier:</td><td id="metaProfile" class="mono-text">—</td></tr>
+        <tr><td>Level:</td><td id="metaLevel" class="mono-text">—</td></tr>
+        <tr><td>Codec String:</td><td id="metaCodecStr" class="mono-text">—</td></tr>
+        <tr><td>Duration:</td><td id="metaDuration" class="mono-text">—</td></tr>
+      </table>
+    </div>
+
+    <!-- Canvas Frame Preview -->
+    <div class="canvas-preview-box" id="canvasPreviewBox" style="display: none;">
+      <span class="inline-label">Decoded Video Frame Snapshot:</span>
+      <canvas id="hevcCanvas" class="hevc-canvas"></canvas>
+      <div class="bar">
+        <button id="exportFrameBtn" class="pill-btn primary">Export Frame PNG</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tab 4: Traffic & Simulation ────────────── -->
+  <div class="tab-pane" id="pane-traffic">
+    <div class="pane-actions">
+      <span class="section-hint">Intercepted network traffic (Dola & Localhost).</span>
       <button id="clearTraffic" class="pill-btn">Clear</button>
     </div>
+
+    <!-- Mock Scenario Selector for Local Testing -->
+    <div class="mock-scenario-box">
+      <span class="inline-label">Mock Limit Testing (Localhost):</span>
+      <select id="mockScenarioSelect" class="small-select">
+        <option value="none">Pass-Through (Real Traffic)</option>
+        <option value="unlimited_credits">Simulate Unlimited Tier (999k Credits)</option>
+        <option value="zero_credits">Simulate Zero Credits (Credits: 0)</option>
+        <option value="server_rejection">Simulate Server 402 Rejection</option>
+        <option value="expired_credits">Simulate 403 Forbidden</option>
+      </select>
+    </div>
+
     <div class="traffic-container">
       <table class="traffic-table" id="trafficTable">
         <thead>
           <tr>
             <th>Status</th>
+            <th>30s</th>
             <th>Method</th>
-            <th>URL</th>
+            <th>Endpoint</th>
             <th>Time</th>
           </tr>
         </thead>
         <tbody id="trafficTableBody">
-          <tr><td colspan="4" class="empty-state">No requests intercepted yet. Ensure you are on http://localhost or http://127.0.0.1</td></tr>
+          <tr><td colspan="5" class="empty-state">No requests intercepted yet. Active on dola.com, trydola.com, doubao.com, and localhost.</td></tr>
         </tbody>
       </table>
     </div>
@@ -84,143 +233,49 @@
           <pre id="detailReqPayload" class="code-preview"></pre>
         </div>
         <div class="detail-group">
-          <strong>Response Payload:</strong>
+          <strong>Response Body:</strong>
           <pre id="detailResPayload" class="code-preview"></pre>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ── Tab 2: Simulate (Mock Credit & Limit Testing) ── -->
-  <div class="tab-pane" id="pane-simulate">
-    <span class="section-hint">Test client-side handling against simulated responses on allowlisted endpoints.</span>
-    
-    <div class="scenario-grid">
-      <label class="scenario-card">
-        <input type="radio" name="scenarioRadio" value="none" checked>
-        <div class="scenario-info">
-          <strong>Pass-Through (No Mock)</strong>
-          <p>Real server responses pass through unmodified.</p>
-        </div>
-      </label>
+  <!-- ── Tab 5: ShamodPro Guide & Fix ───────────── -->
+  <div class="tab-pane" id="pane-guide">
+    <div class="guide-box">
+      <h3>🚀 ShamodPro v3 Feature Architecture</h3>
+      <p class="guide-intro">This extension implements the exact mechanisms shared by Shamod Firezz for generating 30-second AI videos and resolving Dola AI limits:</p>
 
-      <label class="scenario-card">
-        <input type="radio" name="scenarioRadio" value="zero_credits">
-        <div class="scenario-info">
-          <strong>Zero Credits Balance</strong>
-          <p>Returns 200 OK with credits: 0 and status: 'exhausted'.</p>
-        </div>
-      </label>
-
-      <label class="scenario-card">
-        <input type="radio" name="scenarioRadio" value="expired_credits">
-        <div class="scenario-info">
-          <strong>Expired Credits / Plan</strong>
-          <p>Returns 403 Forbidden with CREDITS_EXPIRED error code.</p>
-        </div>
-      </label>
-
-      <label class="scenario-card">
-        <input type="radio" name="scenarioRadio" value="server_rejection">
-        <div class="scenario-info">
-          <strong>Server Rejection (HTTP 402)</strong>
-          <p>Returns 402 Payment Required on generation requests.</p>
-        </div>
-      </label>
-
-      <label class="scenario-card">
-        <input type="radio" name="scenarioRadio" value="malformed_json">
-        <div class="scenario-info">
-          <strong>Malformed Response Syntax</strong>
-          <p>Injects syntax-corrupted payload to test client resilience.</p>
-        </div>
-      </label>
-
-      <label class="scenario-card">
-        <input type="radio" name="scenarioRadio" value="unlimited_credits">
-        <div class="scenario-info">
-          <strong>Simulated Unlimited Tier</strong>
-          <p>Returns 200 OK with 999,999 credits for local UI flow testing.</p>
-        </div>
-      </label>
-    </div>
-  </div>
-
-  <!-- ── Tab 3: HEVC Extractor & Decoder ────────── -->
-  <div class="tab-pane" id="pane-hevc">
-    <span class="section-hint">Inspect HEVC (H.265) streams & decode frames using WebCodecs API.</span>
-
-    <div class="hevc-upload-box">
-      <input type="file" id="hevcFileInput" accept=".mp4,.h265,.hevc">
-      <label for="hevcFileInput" class="file-label">Choose Test MP4 Video...</label>
-    </div>
-
-    <div id="hevcMetadataCard" class="hevc-meta-card" style="display: none;">
-      <div class="hevc-meta-header">
-        <span class="tpl-tag t2v" id="hevcCodecBadge">HVC1</span>
-        <span id="hevcWebCodecsStatus" class="mode-badge">Checking WebCodecs...</span>
+      <div class="guide-card">
+        <h4>1. ⚡ 30-Second Duration Force Engine</h4>
+        <p>By default, Dola AI's web UI restricts video options to shorter durations (5s–15s). This extension hooks <code>window.fetch</code> and <code>XMLHttpRequest</code> in the page's main execution realm and automatically injects <code>duration: 30</code> into all outgoing generation payloads before they hit ByteDance/Dola servers.</p>
       </div>
-      <table class="meta-table">
-        <tr><td>Resolution:</td><td id="metaRes" class="mono-text">—</td></tr>
-        <tr><td>Profile & Tier:</td><td id="metaProfile" class="mono-text">—</td></tr>
-        <tr><td>Level:</td><td id="metaLevel" class="mono-text">—</td></tr>
-        <tr><td>Codec String:</td><td id="metaCodecStr" class="mono-text">—</td></tr>
-        <tr><td>Duration:</td><td id="metaDuration" class="mono-text">—</td></tr>
-      </table>
-    </div>
 
-    <!-- Canvas Frame Preview -->
-    <div class="canvas-preview-box" id="canvasPreviewBox" style="display: none;">
-      <span class="inline-label">Frame Preview (Canvas):</span>
-      <canvas id="hevcCanvas" class="hevc-canvas"></canvas>
-      <div class="bar">
-        <button id="exportFrameBtn" class="pill-btn">Export Frame PNG</button>
+      <div class="guide-card">
+        <h4>2. 🛡️ High Demand Error Auto-Fix</h4>
+        <p>When Dola AI servers experience peak traffic, they reject generation requests with HTTP 429, 503, or "High Demand" errors. The extension detects this response signature and executes an automatic jittered retry sequence (up to 5 attempts) so your generation queues without having to manually refresh or re-click.</p>
+      </div>
+
+      <div class="guide-card">
+        <h4>3. 🚫 Clean MP4 & Watermark Removal</h4>
+        <p>The extension monitors API responses for raw video stream endpoints (hosted on ByteDance/Volcengine CDNs) and extracts the unwatermarked direct MP4 link, providing an instant 1-click download button directly on the page.</p>
+      </div>
+
+      <div class="guide-card">
+        <h4>4. 📦 Installation & Setup in Chrome</h4>
+        <ol class="setup-steps">
+          <li>Open <code>chrome://extensions/</code> in your browser.</li>
+          <li>Turn on <strong>Developer mode</strong> (top-right toggle).</li>
+          <li>Click <strong>Load unpacked</strong> and select this folder.</li>
+          <li>Navigate to <code>dola.com</code> or <code>trydola.com</code>. The extension will automatically activate.</li>
+        </ol>
       </div>
     </div>
-  </div>
-
-  <!-- ── Tab 4: Generation Queue ────────────────── -->
-  <div class="tab-pane" id="pane-queue">
-    <div class="add-row">
-      <label for="bulk">Test Prompt Queue <span class="muted">(Local target execution)</span></label>
-      <div class="cost-row">
-        <label class="inline-label" for="costPerVideo">Cost:</label>
-        <input id="costPerVideo" type="number" min="1" max="999" value="8" class="credit-input small">
-      </div>
-    </div>
-    <textarea id="bulk" rows="3" placeholder="Enter test prompt..."></textarea>
-    <button id="add" class="secondary full-w">Add to Queue</button>
-
-    <div class="queue-header" id="queueHeader">
-      <span id="progress">0 of 0 done</span>
-      <span id="budgetLeft" class="budget-tag ok">Local Test Queue</span>
-    </div>
-    <ul id="list"></ul>
-
-    <div class="bar">
-      <button id="insert" class="primary" disabled>Insert Prompt</button>
-      <button id="copy" class="secondary">Copy</button>
-    </div>
-    <p id="msg" role="status"></p>
-    <div class="link-row">
-      <button id="reset" class="link">Mark undone</button>
-      <button id="clear" class="link">Clear queue</button>
-    </div>
-  </div>
-
-  <!-- ── Tab 5: Audit Log & JSON Export ─────────── -->
-  <div class="tab-pane" id="pane-audit">
-    <div class="pane-actions">
-      <span class="section-hint">Structured audit log of events and simulated scenarios.</span>
-      <button id="exportAuditJson" class="pill-btn primary">Export JSON</button>
-    </div>
-    <ul id="auditLogList" class="history-list"></ul>
-    <p id="emptyAudit" class="empty-state">No security test events logged yet.</p>
   </div>
 
   <!-- ── Footer ─────────────────────────────────── -->
   <footer>
-    <span>hello_dola · Security Testing Harness · Localhost Scoped</span>
+    <span>Dola AI Pro v3.0.0 · Seedance 2.5 · ShamodPro Engine</span>
   </footer>
 
   <script src="hevc-decoder.js"></script>

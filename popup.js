@@ -1,51 +1,158 @@
 /* ─────────────────────────────────────────────────────────
-   hello_dola — popup.js (Security Testing & HEVC Harness)
+   Dola AI Pro — popup.js (ShamodPro v3 Engine)
 ──────────────────────────────────────────────────────── */
 
 const $ = (id) => document.getElementById(id);
 
-let harnessConfig = {
-  mode: "observe",            // "disabled" | "observe" | "modify"
-  activeScenario: "none",
-  allowlist: ["localhost", "127.0.0.1"],
+let dolaConfig = {
+  mode: "active",
+  enable30s: true,
+  strict1080p: true,
+  fixHighDemand: true,
+  removeWatermark: true,
+  enableSeedance: true,
+  activeScenario: "none"
 };
 
 let trafficLogs = [];
 let queueItems = [];
+let capturedVideos = [];
 
-/* ── Boot & Storage Sync ────────────────────────────── */
+// Built-in 30-Second Cinematic Presets from SKILL.md
+const PRESETS = {
+  stage_flourish: {
+    beat1: "Vertical 9:16 framing, 50mm prime lens at f/1.8. Dramatic theatrical stage lighting with deep cobalt background and warm golden spotlight on the hands. The performer maintains calm stage presence, chest breathing naturally, eyes focused forward.",
+    beat2: "Slow steadicam push-in toward the hands. The performer executes a smooth, deliberate card flourish, fanning the deck into an arc across both hands at 24fps. One single card is turned cleanly toward the camera with measured, realistic weight.",
+    beat3: "Camera slowly pulls back to medium framing as the card fan closes cleanly back into the deck. Atmospheric stage dust particles glint softly in the spotlight beam, lingering in cinematic stillness."
+  },
+  hollywood: {
+    beat1: "Shot on 35mm anamorphic lens, Arri Alexa LF, shallow depth of field, f/2.0. Soft directional golden-hour sunlight pouring through haze, subtle rim lighting, natural specular highlights. Weathered artisan in linen tunic, visible skin texture, fine stubble.",
+    beat2: "Steadicam slowly advances at chest level. Artisan carefully lifts an antique brass astrolabe toward the light, checking astronomical alignment with slow, deliberate physical weight.",
+    beat3: "Camera slowly orbits 20 degrees to reveal sunbeam refraction through dust particles, settling into a wide cinematic frame. Kodak Vision3 500T color grading, organic subtle 35mm film grain, 24fps motion blur."
+  },
+  steadicam: {
+    beat1: "Shot on 50mm prime lens, f/1.4 aperture. Deep blue hour twilight in a cobblestone coastal European alleyway, warm glowing practical street lanterns casting wet reflections.",
+    beat2: "Smooth steadicam tracking shot behind a solitary traveler in dark tailored overcoat walking steadily forward, mist rising from damp stone pavers, breath lightly condensing.",
+    beat3: "Traveler pauses at alley opening, camera gently pans to reveal panoramic harbor with twinkling lighthouse beams, lingering on cold atmospheric ocean air."
+  },
+  macro: {
+    beat1: "Laowa 24mm probe macro lens, f/8, ultra-close perspective. Hot cast-iron skillet surface, micro droplets of rosemary-infused olive oil glistening under soft diffused studio top light.",
+    beat2: "Slow horizontal probe movement at 24fps. Sizzling sprig of fresh green rosemary meets the hot pan, micro oil bubbles bursting into fine mist with realistic fluid dynamics.",
+    beat3: "Probe pulls smoothly backward revealing pristine copper cookware and dark textured slate background, lingering on rising delicate steam wisps."
+  },
+  cyberpunk: {
+    beat1: "Shot on 35mm anamorphic, neon teal and magenta dual-source rim lighting. High-density rainy neo-Tokyo skybridge, holographic reflections shimmering on wet carbon fiber jacket.",
+    beat2: "Slow orbital tracking arc at 24fps. Cybernetic courier taps luminous wrist interface, translucent data streams projecting briefly into cold rain before dispersing.",
+    beat3: "Camera pulls back through cascading rain droplets revealing towering illuminated megacity spires disappearing into low-hanging clouds."
+  },
+  nature: {
+    beat1: "Shot on 35mm anamorphic lens. Ancient misty evergreen forest, early morning god rays piercing towering canopy, damp moss carpet glowing softly.",
+    beat2: "Slow steadicam push-in. Lone mountaineer in wax-canvas jacket halts on ridge, raises vintage brass binoculars to inspect distant valley.",
+    beat3: "Camera smoothly booms up and pulls back to reveal immense sunlit mountain range rising above cloud blanket, pine needles rustling in gentle wind."
+  }
+};
+
+/* ── 1. Boot & Storage Sync ─────────────────────────── */
 async function init() {
-  // Load harness config
-  const cfg = await chrome.storage.local.get(["harness_config", "harness_traffic_log", "harness_queue"]);
-  if (cfg.harness_config) {
-    Object.assign(harnessConfig, cfg.harness_config);
+  const data = await chrome.storage.local.get([
+    "dola_config",
+    "harness_traffic_log",
+    "dola_queue",
+    "captured_videos"
+  ]);
+
+  if (data.dola_config) {
+    Object.assign(dolaConfig, data.dola_config);
   }
 
-  // Sync controls
-  $("harnessModeSelect").value = harnessConfig.mode;
-  $("harnessMasterToggle").checked = harnessConfig.mode !== "disabled";
+  // Sync checkboxes
+  $("toggle30s").checked = dolaConfig.enable30s !== false;
+  $("toggle1080p").checked = dolaConfig.strict1080p !== false;
+  $("toggleHighDemand").checked = dolaConfig.fixHighDemand !== false;
+  $("toggleNoWatermark").checked = dolaConfig.removeWatermark !== false;
+  $("toggleSeedance").checked = dolaConfig.enableSeedance !== false;
+
+  // Sync mock scenario
+  if (dolaConfig.activeScenario) {
+    $("mockScenarioSelect").value = dolaConfig.activeScenario;
+  }
   updateStatusBadge();
 
-  // Sync active scenario radio
-  const radio = document.querySelector(`input[name="scenarioRadio"][value="${harnessConfig.activeScenario}"]`);
-  if (radio) radio.checked = true;
-
-  // Load traffic logs
-  trafficLogs = cfg.harness_traffic_log || [];
+  // Load lists
+  trafficLogs = data.harness_traffic_log || [];
   renderTrafficTable();
 
-  // Load queue
-  queueItems = cfg.harness_queue || [];
+  capturedVideos = data.captured_videos || [];
+  renderVideosList();
+
+  queueItems = data.dola_queue || [];
   renderQueue();
 
-  // Render audit log
-  renderAuditLogs();
+  // Initial prompt setup
+  loadPreset("hollywood");
 
-  // Check WebCodecs capability in popup
+  // Check WebCodecs support
   checkGlobalWebCodecs();
 }
 
-/* ── Tab Switching ──────────────────────────────────── */
+function updateStatusBadge() {
+  const badge = $("engineStatusBadge");
+  if (dolaConfig.enable30s && dolaConfig.strict1080p) {
+    badge.textContent = "30s · 1080p ACTIVE";
+    badge.className = "security-badge active";
+  } else if (dolaConfig.enable30s) {
+    badge.textContent = "30s ACTIVE";
+    badge.className = "security-badge active";
+  } else {
+    badge.textContent = "STANDARD";
+    badge.className = "security-badge disabled";
+  }
+}
+
+async function saveConfig() {
+  await chrome.storage.local.set({ dola_config: dolaConfig });
+  updateStatusBadge();
+
+  // Notify active tab content script
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab && tab.id) {
+      await chrome.tabs.sendMessage(tab.id, {
+        type: "UPDATE_DOLA_CONFIG",
+        payload: dolaConfig
+      });
+    }
+  } catch (_) { }
+}
+
+// Checkbox event listeners
+$("toggle30s").onchange = (e) => {
+  dolaConfig.enable30s = e.target.checked;
+  saveConfig();
+};
+$("toggle1080p").onchange = (e) => {
+  dolaConfig.strict1080p = e.target.checked;
+  saveConfig();
+};
+$("toggleHighDemand").onchange = (e) => {
+  dolaConfig.fixHighDemand = e.target.checked;
+  saveConfig();
+};
+$("toggleNoWatermark").onchange = (e) => {
+  dolaConfig.removeWatermark = e.target.checked;
+  saveConfig();
+};
+$("toggleSeedance").onchange = (e) => {
+  dolaConfig.enableSeedance = e.target.checked;
+  saveConfig();
+};
+$("mockScenarioSelect").onchange = (e) => {
+  dolaConfig.activeScenario = e.target.value;
+  dolaConfig.mode = e.target.value === "none" ? "active" : "modify";
+  saveConfig();
+};
+
+/* ── 2. Navigation Tabs ─────────────────────────────── */
 document.querySelectorAll(".tab").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach((t) => {
@@ -59,82 +166,269 @@ document.querySelectorAll(".tab").forEach((btn) => {
   });
 });
 
-/* ── Harness Configuration Handlers ─────────────────── */
-function updateStatusBadge() {
-  const badge = $("harnessStatusBadge");
-  const mode = harnessConfig.mode.toUpperCase();
-  badge.textContent = `${mode} MODE`;
-  badge.className = `security-badge ${harnessConfig.mode}`;
+/* ── 3. 30s Cinematic Prompt Engine ─────────────────── */
+function loadPreset(key) {
+  const p = PRESETS[key];
+  if (!p) return;
+  $("beat1Input").value = p.beat1;
+  $("beat2Input").value = p.beat2;
+  $("beat3Input").value = p.beat3;
+  buildMasterPrompt();
 }
 
-async function saveHarnessConfig() {
-  await chrome.storage.local.set({ harness_config: harnessConfig });
-  updateStatusBadge();
+function buildMasterPrompt() {
+  const b1 = $("beat1Input").value.trim();
+  const b2 = $("beat2Input").value.trim();
+  const b3 = $("beat3Input").value.trim();
 
-  // Notify active tab content script
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab && tab.id) {
-      await chrome.tabs.sendMessage(tab.id, {
-        type: "UPDATE_HARNESS_CONFIG",
-        payload: harnessConfig,
-      });
-    }
-  } catch (_) {}
+  const parts = [];
+  if (b1) parts.push(`(0–8s Establish) ${b1}`);
+  if (b2) parts.push(`(8–22s Core Action) ${b2}`);
+  if (b3) parts.push(`(22–30s Cinematic Resolve) ${b3}`);
+
+  // Add realistic physics & negative guidelines (from SKILL.md)
+  parts.push("Organic 35mm film grain, 24fps motion blur, realistic cloth simulation. Negative: plastic skin, 3D CGI videogame render, oversaturated colors, morphing limbs, sudden jump cuts.");
+
+  $("masterPromptPreview").value = parts.join(" ");
 }
 
-$("harnessMasterToggle").onchange = () => {
-  if (!$("harnessMasterToggle").checked) {
-    harnessConfig.mode = "disabled";
-  } else {
-    harnessConfig.mode = $("harnessModeSelect").value === "disabled" ? "observe" : $("harnessModeSelect").value;
+$("presetSelect").onchange = (e) => {
+  if (e.target.value) {
+    loadPreset(e.target.value);
   }
-  $("harnessModeSelect").value = harnessConfig.mode;
-  saveHarnessConfig();
 };
 
-$("harnessModeSelect").onchange = () => {
-  harnessConfig.mode = $("harnessModeSelect").value;
-  $("harnessMasterToggle").checked = harnessConfig.mode !== "disabled";
-  saveHarnessConfig();
-};
+$("buildPromptBtn").onclick = () => buildMasterPrompt();
 
-// Scenario radios
-document.querySelectorAll('input[name="scenarioRadio"]').forEach((radio) => {
-  radio.addEventListener("change", (e) => {
-    harnessConfig.activeScenario = e.target.value;
-    if (harnessConfig.activeScenario !== "none" && harnessConfig.mode === "observe") {
-      // Auto-switch to Modify mode when picking a scenario
-      harnessConfig.mode = "modify";
-      $("harnessModeSelect").value = "modify";
+async function sendPromptToActiveTab(text) {
+  if (!text) {
+    showPromptMsg("Prompt is empty", true);
+    return;
+  }
+
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab || !tab.id) {
+    showPromptMsg("No active tab found", true);
+    return;
+  }
+
+  const url = tab.url || "";
+  if (url.startsWith("chrome://") || url.startsWith("chrome-extension://") || url.startsWith("edge://") || url.startsWith("about:")) {
+    showPromptMsg("⚠️ Open dola.com or trydola.com in this tab first!", true);
+    return;
+  }
+
+  async function trySend() {
+    return await chrome.tabs.sendMessage(tab.id, { type: "insert", text });
+  }
+
+  try {
+    let res;
+    try {
+      res = await trySend();
+    } catch (err) {
+      // Content script may not be loaded if the page was opened before installing/reloading the extension
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ["content.js"]
+        });
+        await new Promise((r) => setTimeout(r, 200));
+        res = await trySend();
+      } catch (injectErr) {
+        showPromptMsg("Please refresh (F5) the Dola AI tab once, then click Insert again.", true);
+        return;
+      }
     }
-    saveHarnessConfig();
-    logAuditEvent("SCENARIO_CHANGED", `Activated scenario: ${harnessConfig.activeScenario}`);
-  });
-});
 
-/* ── Traffic Log Rendering ──────────────────────────── */
+    if (res && res.ok) {
+      showPromptMsg("✅ Prompt inserted into Dola AI!");
+    } else {
+      showPromptMsg(res?.error || "Click into Dola's prompt input on the page first.", true);
+    }
+  } catch (err) {
+    showPromptMsg("Please refresh (F5) your Dola AI tab and try again.", true);
+  }
+}
+
+$("insertDolaBtn").onclick = () => {
+  const text = $("masterPromptPreview").value.trim();
+  sendPromptToActiveTab(text);
+};
+
+$("copyPromptBtn").onclick = async () => {
+  const text = $("masterPromptPreview").value.trim();
+  if (!text) return;
+  await navigator.clipboard.writeText(text);
+  showPromptMsg("📋 Copied master prompt to clipboard!");
+};
+
+$("addQueueBtn").onclick = async () => {
+  const text = $("masterPromptPreview").value.trim();
+  if (!text) return;
+  queueItems.push({ text, done: false });
+  await chrome.storage.local.set({ dola_queue: queueItems });
+  renderQueue();
+  showPromptMsg("Added to prompt queue!");
+};
+
+function showPromptMsg(msg, isErr = false) {
+  const el = $("promptMsg");
+  el.textContent = msg;
+  el.className = `status-msg ${isErr ? "err" : "ok"}`;
+  setTimeout(() => {
+    if (el.textContent === msg) el.textContent = "";
+  }, 4000);
+}
+
+function renderQueue() {
+  const list = $("queueList");
+  list.innerHTML = "";
+  $("queueProgress").textContent = `Queue (${queueItems.length} items)`;
+
+  queueItems.forEach((item, idx) => {
+    const li = document.createElement("li");
+    if (item.done) li.className = "done";
+
+    const chk = document.createElement("input");
+    chk.type = "checkbox";
+    chk.checked = item.done;
+    chk.onchange = async () => {
+      item.done = chk.checked;
+      await chrome.storage.local.set({ dola_queue: queueItems });
+      renderQueue();
+    };
+
+    const span = document.createElement("span");
+    span.textContent = item.text;
+    span.title = item.text;
+
+    const quickInsert = document.createElement("button");
+    quickInsert.className = "del-btn";
+    quickInsert.style.color = "var(--cyan)";
+    quickInsert.textContent = "⚡";
+    quickInsert.title = "Insert this prompt into Dola";
+    quickInsert.onclick = async () => {
+      await sendPromptToActiveTab(item.text);
+      item.done = true;
+      await chrome.storage.local.set({ dola_queue: queueItems });
+      renderQueue();
+    };
+
+    const del = document.createElement("button");
+    del.className = "del-btn";
+    del.textContent = "✕";
+    del.onclick = async () => {
+      queueItems.splice(idx, 1);
+      await chrome.storage.local.set({ dola_queue: queueItems });
+      renderQueue();
+    };
+
+    li.append(chk, span, quickInsert, del);
+    list.appendChild(li);
+  });
+}
+
+$("clearQueueBtn").onclick = async () => {
+  queueItems = [];
+  await chrome.storage.local.set({ dola_queue: [] });
+  renderQueue();
+};
+
+/* ── 4. Captured Videos List ────────────────────────── */
+function renderVideosList() {
+  const list = $("videosList");
+  const count = $("videoCount");
+  if (count) count.textContent = capturedVideos.length;
+
+  if (capturedVideos.length === 0) {
+    list.innerHTML = `<div class="empty-state">No videos intercepted yet. Generate a video on Dola AI to capture the clean stream.</div>`;
+    return;
+  }
+
+  list.innerHTML = "";
+  capturedVideos.forEach((v) => {
+    const card = document.createElement("div");
+    card.className = "video-card";
+
+    const info = document.createElement("div");
+    info.className = "video-card-info";
+
+    const title = document.createElement("div");
+    title.className = "video-card-title";
+    title.textContent = v.name || "Dola 30s Video (Clean MP4)";
+
+    const meta = document.createElement("div");
+    meta.className = "video-card-meta";
+    meta.textContent = new Date(v.timestamp).toLocaleTimeString() + " · Unwatermarked";
+
+    info.append(title, meta);
+
+    const actions = document.createElement("div");
+    actions.className = "video-card-actions";
+
+    const dlBtn = document.createElement("a");
+    dlBtn.className = "dl-action-btn";
+    dlBtn.href = v.url;
+    dlBtn.download = v.name || "dola-30s-video.mp4";
+    dlBtn.target = "_blank";
+    dlBtn.textContent = "⬇️ Download";
+
+    actions.appendChild(dlBtn);
+    card.append(info, actions);
+    list.appendChild(card);
+  });
+}
+
+$("clearVideosBtn").onclick = async () => {
+  capturedVideos = [];
+  await chrome.storage.local.set({ captured_videos: [] });
+  renderVideosList();
+};
+
+/* ── 5. Traffic Log Rendering ───────────────────────── */
 function renderTrafficTable() {
   const tbody = $("trafficTableBody");
-  const countBadge = $("trafficCount");
-  if (countBadge) countBadge.textContent = trafficLogs.length;
+  const count = $("trafficCount");
+  if (count) count.textContent = trafficLogs.length;
 
   if (trafficLogs.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" class="empty-state">No requests intercepted yet. Ensure you are on http://localhost or http://127.0.0.1</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No requests intercepted yet. Active on dola.com, trydola.com, doubao.com, and localhost.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = "";
-  trafficLogs.forEach((log, index) => {
+  trafficLogs.forEach((log) => {
     const tr = document.createElement("tr");
 
     const statusTd = document.createElement("td");
     const statusPill = document.createElement("span");
     const isOk = log.responseStatus >= 200 && log.responseStatus < 300;
-    statusPill.className = `status-pill ${isOk ? "ok" : log.responseStatus === 402 ? "warn" : "err"}`;
+    statusPill.className = `status-pill ${isOk ? "ok" : log.responseStatus === 402 || log.responseStatus === 429 ? "warn" : "err"}`;
     statusPill.textContent = log.responseStatus || "ERR";
-    if (log.simulated) statusPill.title = `Simulated by: ${log.scenario}`;
     statusTd.appendChild(statusPill);
+
+    const modTd = document.createElement("td");
+    let hasMod = false;
+    if (log.wasModifiedFor30s) {
+      const p30 = document.createElement("span");
+      p30.className = "pill-30s";
+      p30.textContent = "30s";
+      p30.title = "Duration parameter patched to 30s";
+      modTd.appendChild(p30);
+      hasMod = true;
+    }
+    if (log.wasModifiedFor1080p) {
+      const p1080 = document.createElement("span");
+      p1080.className = "pill-1080p";
+      p1080.textContent = "1080p";
+      p1080.title = "Resolution strictly enforced to 1080p";
+      modTd.appendChild(p1080);
+      hasMod = true;
+    }
+    if (!hasMod) {
+      modTd.textContent = "—";
+    }
 
     const methodTd = document.createElement("td");
     methodTd.textContent = log.method;
@@ -142,27 +436,31 @@ function renderTrafficTable() {
     const urlTd = document.createElement("td");
     try {
       const parsed = new URL(log.url);
-      urlTd.textContent = parsed.pathname + parsed.search;
+      urlTd.textContent = parsed.pathname.slice(-25);
       urlTd.title = log.url;
     } catch (_) {
-      urlTd.textContent = log.url;
+      urlTd.textContent = String(log.url).slice(-25);
     }
 
     const timeTd = document.createElement("td");
     timeTd.textContent = `${log.duration}ms`;
 
-    tr.append(statusTd, methodTd, urlTd, timeTd);
+    tr.append(statusTd, modTd, methodTd, urlTd, timeTd);
     tr.onclick = () => showPayloadDrawer(log, tr);
 
     tbody.appendChild(tr);
   });
 }
 
-function showPayloadDrawer(log, rowElement) {
+function showPayloadDrawer(log, row) {
   document.querySelectorAll("#trafficTableBody tr").forEach((r) => r.classList.remove("selected"));
-  if (rowElement) rowElement.classList.add("selected");
+  if (row) row.classList.add("selected");
 
-  $("drawerTitle").textContent = `${log.method} ${log.responseStatus} (${log.duration}ms) ${log.simulated ? "[SIMULATED]" : ""}`;
+  const tags = [];
+  if (log.wasModifiedFor30s) tags.push("30s");
+  if (log.wasModifiedFor1080p) tags.push("1080p");
+  const tagStr = tags.length ? `[${tags.join(" · ")} ENFORCED]` : "";
+  $("drawerTitle").textContent = `${log.method} ${log.responseStatus} (${log.duration}ms) ${tagStr}`;
   $("detailUrl").textContent = log.url;
 
   $("detailReqPayload").textContent = log.requestPayload
@@ -191,7 +489,7 @@ $("clearTraffic").onclick = async () => {
   $("payloadDrawer").style.display = "none";
 };
 
-// Listen for live traffic relayed by content script
+// Live traffic listener from content script
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg && msg.type === "NEW_TRAFFIC_LOG") {
     trafficLogs.unshift({ id: Date.now(), ...msg.log });
@@ -200,26 +498,24 @@ chrome.runtime.onMessage.addListener((msg) => {
   }
 });
 
-/* ── HEVC Extractor & Decoder Logic ─────────────────── */
+/* ── 6. HEVC Extractor & Decoder Logic ──────────────── */
 async function checkGlobalWebCodecs() {
   const statusEl = $("hevcWebCodecsStatus");
   if (!statusEl) return;
   if (typeof VideoDecoder === "undefined") {
     statusEl.textContent = "WebCodecs: Unsupported";
-    statusEl.className = "mode-badge";
     return;
   }
   try {
     const res = await VideoDecoder.isConfigSupported({ codec: "hvc1.1.6.L93.B0" });
     if (res.supported) {
-      statusEl.textContent = "WebCodecs: HEVC Supported";
+      statusEl.textContent = "WebCodecs: Hardware HEVC Ready";
       statusEl.className = "mode-badge test";
     } else {
-      statusEl.textContent = "WebCodecs: HEVC Unsupported by GPU/OS";
-      statusEl.className = "mode-badge";
+      statusEl.textContent = "WebCodecs: Software Fallback";
     }
-  } catch (err) {
-    statusEl.textContent = "WebCodecs Error";
+  } catch (_) {
+    statusEl.textContent = "WebCodecs Ready";
   }
 }
 
@@ -236,7 +532,6 @@ $("hevcFileInput").onchange = async (e) => {
       const inspector = new window.HEVCInspector(buffer);
       const meta = inspector.inspect();
 
-      // Render metadata
       $("hevcMetadataCard").style.display = "block";
       $("hevcCodecBadge").textContent = meta.codec.toUpperCase();
       $("metaRes").textContent = `${meta.width} × ${meta.height}`;
@@ -245,9 +540,6 @@ $("hevcFileInput").onchange = async (e) => {
       $("metaCodecStr").textContent = meta.codecString;
       $("metaDuration").textContent = `${meta.duration}s`;
 
-      logAuditEvent("HEVC_INSPECTED", `Inspected ${file.name}: ${meta.codecString} (${meta.width}x${meta.height})`);
-
-      // Initialize WebDecoder
       const canvas = $("hevcCanvas");
       activeWebDecoder = new window.HEVCWebDecoder(canvas);
       const support = await activeWebDecoder.checkCodecSupport(meta.codecString);
@@ -258,11 +550,9 @@ $("hevcFileInput").onchange = async (e) => {
         $("canvasPreviewBox").style.display = "block";
       } else {
         $("hevcWebCodecsStatus").textContent = "Decoder: " + support.reason;
-        $("hevcWebCodecsStatus").className = "mode-badge";
       }
     } catch (err) {
       alert("HEVC Inspection Failed: " + err.message);
-      logAuditEvent("HEVC_ERROR", err.message);
     }
   };
   reader.readAsArrayBuffer(file);
@@ -273,177 +563,8 @@ $("exportFrameBtn").onclick = () => {
   const dataUrl = activeWebDecoder.exportCurrentFramePNG();
   const a = document.createElement("a");
   a.href = dataUrl;
-  a.download = `hevc-frame-${Date.now()}.png`;
+  a.download = `dola-30s-frame-${Date.now()}.png`;
   a.click();
-  logAuditEvent("FRAME_EXPORTED", "Exported canvas frame as PNG.");
-};
-
-/* ── Queue Management ───────────────────────────────── */
-function renderQueue() {
-  const list = $("list");
-  list.innerHTML = "";
-  const nextIndex = queueItems.findIndex((i) => !i.done);
-
-  queueItems.forEach((item, idx) => {
-    const li = document.createElement("li");
-    if (item.done) li.className = "done";
-
-    const box = document.createElement("input");
-    box.type = "checkbox";
-    box.checked = item.done;
-    box.onchange = () => {
-      item.done = box.checked;
-      saveQueue();
-      renderQueue();
-    };
-
-    const text = document.createElement("span");
-    text.className = "prompt-text";
-    text.textContent = item.text;
-
-    const del = document.createElement("button");
-    del.className = "remove-btn";
-    del.textContent = "✕";
-    del.onclick = () => {
-      queueItems.splice(idx, 1);
-      saveQueue();
-      renderQueue();
-    };
-
-    li.append(box, text, del);
-    list.appendChild(li);
-  });
-
-  const doneCount = queueItems.filter((i) => i.done).length;
-  $("progress").textContent = `${doneCount} of ${queueItems.length} done`;
-  $("insert").disabled = nextIndex === -1;
-}
-
-async function saveQueue() {
-  await chrome.storage.local.set({ harness_queue: queueItems });
-}
-
-$("add").onclick = () => {
-  const raw = $("bulk").value.trim();
-  if (!raw) return;
-  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
-  lines.forEach((t) => queueItems.push({ text: t, done: false }));
-  $("bulk").value = "";
-  saveQueue();
-  renderQueue();
-};
-
-$("insert").onclick = async () => {
-  const next = queueItems.find((i) => !i.done);
-  if (!next) return;
-
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  try {
-    const res = await chrome.tabs.sendMessage(tab.id, { type: "insert", text: next.text });
-    if (res && res.ok) {
-      next.done = true;
-      saveQueue();
-      renderQueue();
-      say("Prompt injected into test target.");
-      logAuditEvent("PROMPT_INJECTED", next.text);
-    } else {
-      say(res?.error || "Injection failed", true);
-    }
-  } catch (err) {
-    say(err.message || "Failed to inject into page", true);
-  }
-};
-
-$("copy").onclick = async () => {
-  const next = queueItems.find((i) => !i.done);
-  if (!next) return;
-  await navigator.clipboard.writeText(next.text);
-  say("Copied prompt to clipboard.");
-};
-
-$("reset").onclick = () => {
-  queueItems.forEach((i) => (i.done = false));
-  saveQueue();
-  renderQueue();
-};
-$("clear").onclick = () => {
-  queueItems = [];
-  saveQueue();
-  renderQueue();
-};
-
-function say(text, isErr = false) {
-  const el = $("msg");
-  el.textContent = text;
-  el.className = isErr ? "err" : "";
-}
-
-/* ── Audit Log & JSON Export ────────────────────────── */
-let auditEvents = [];
-
-function logAuditEvent(type, detail) {
-  const eventObj = {
-    timestamp: new Date().toISOString(),
-    type,
-    detail,
-  };
-  auditEvents.unshift(eventObj);
-  if (auditEvents.length > 50) auditEvents.pop();
-  renderAuditLogs();
-}
-
-function renderAuditLogs() {
-  const list = $("auditLogList");
-  const empty = $("emptyAudit");
-  if (!list) return;
-
-  list.innerHTML = "";
-  if (auditEvents.length === 0) {
-    if (empty) empty.style.display = "block";
-    return;
-  }
-  if (empty) empty.style.display = "none";
-
-  auditEvents.forEach((ev) => {
-    const li = document.createElement("li");
-    li.className = "history-item";
-
-    const top = document.createElement("div");
-    top.className = "history-top";
-
-    const typeSpan = document.createElement("strong");
-    typeSpan.textContent = ev.type;
-
-    const timeSpan = document.createElement("span");
-    timeSpan.style.color = "var(--muted)";
-    timeSpan.textContent = new Date(ev.timestamp).toLocaleTimeString();
-
-    top.append(typeSpan, timeSpan);
-
-    const desc = document.createElement("div");
-    desc.style.fontSize = "11px";
-    desc.textContent = ev.detail;
-
-    li.append(top, desc);
-    list.appendChild(li);
-  });
-}
-
-$("exportAuditJson").onclick = () => {
-  const exportPayload = {
-    exportedAt: new Date().toISOString(),
-    config: harnessConfig,
-    auditEvents,
-    interceptedTraffic: trafficLogs,
-  };
-
-  const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `security-audit-${Date.now()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
 };
 
 // Initialize

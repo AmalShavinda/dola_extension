@@ -1,22 +1,38 @@
 {
   "manifest_version": 3,
-  "name": "hello_dola — Security Testing & HEVC Harness",
-  "version": "2.0.0",
-  "description": "Authorized security-testing harness and HEVC extraction tool for locally controlled test environments.",
-  "permissions": ["storage", "activeTab", "scripting"],
+  "name": "Dola AI Pro — 30s HD Video Generator & Issue Fix (ShamodPro v3)",
+  "version": "3.0.0",
+  "description": "Unlock 30-second videos on Dola AI / Doubao with Seedance 2.5, auto-fix High Demand errors, and extract clean MP4 media.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "downloads"
+  ],
   "host_permissions": [
+    "*://*.dola.com/*",
+    "*://*.trydola.com/*",
+    "*://*.dola.ai/*",
+    "*://*.doubao.com/*",
+    "*://*.byteimg.com/*",
+    "*://*.volces.com/*",
     "http://localhost/*",
     "http://127.0.0.1/*",
     "http://localhost:*/*",
-    "http://127.0.0.1:*/*"
+    "http://127.0.0.1:*/*",
+    "<all_urls>"
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Security Testing & HEVC Harness"
+    "default_title": "Dola AI Pro 30s Generator & Issue Fix"
   },
   "content_scripts": [
     {
       "matches": [
+        "*://*.dola.com/*",
+        "*://*.trydola.com/*",
+        "*://*.dola.ai/*",
+        "*://*.doubao.com/*",
         "http://localhost/*",
         "http://127.0.0.1/*",
         "http://localhost:*/*",
@@ -29,8 +45,11 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["inpage-interceptor.js"],
-      "matches": ["http://localhost/*", "http://127.0.0.1/*", "http://localhost:*/*", "http://127.0.0.1:*/*"]
+      "resources": [
+        "inpage-interceptor.js",
+        "hevc-decoder.js"
+      ],
+      "matches": ["<all_urls>"]
     }
   ]
 }
