@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Local Mock Video Platform — Test Target</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 30px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: #38bdf8;
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: #94a3b8;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 99px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #0284c7;
+      color: #fff;
+    }
+
+    .badge.warn {
+      background: #eab308;
+      color: #000;
+    }
+
+    .badge.err {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    button {
+      background: #38bdf8;
+      color: #0f172a;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 8px;
+      margin-top: 8px;
+    }
+
+    button:hover {
+      background: #7dd3fc;
+    }
+
+    textarea {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #fff;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 14px;
+      box-sizing: border-box;
+      margin-top: 8px;
+    }
+
+    pre {
+      background: #0f172a;
+      border: 1px solid #334155;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      overflow-x: auto;
+      color: #38bdf8;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>Local Mock Video Application (Test Target)</h1>
+  <p class="subtitle">Use this page to test the Security Testing Harness on <code>http://localhost</code> or
+    <code>http://127.0.0.1</code>.
+  </p>
+
+  <!-- Credit Status Panel -->
+  <div class="card">
+    <h2>Client-Side Credit Monitor</h2>
+    <p>Current Client State: <span id="creditDisplay" class="badge">Unchecked</span></p>
+    <div style="margin-top: 14px;">
+      <button id="btnCheckFetch">Check Credits (Fetch)</button>
+      <button id="btnCheckXHR">Check Credits (XHR)</button>
+    </div>
+  </div>
+
+  <!-- Video Generation Dispatch Panel -->
+  <div class="card">
+    <h2>Dispatch Video Generation</h2>
+    <label for="promptInput">Prompt Input:</label>
+    <textarea id="promptInput" data-testid="prompt-input" rows="3"
+      placeholder="Enter video generation prompt..."></textarea>
+    <div style="margin-top: 10px;">
+      <button id="btnGenerate">Submit Generation Request</button>
+    </div>
+  </div>
+
+  <!-- Live Response Inspector -->
+  <div class="card">
+    <h2>Page Response Output</h2>
+    <pre id="outputLog">Click a button above to observe network traffic and responses in the harness.</pre>
+  </div>
+
+  <script>
+    const output = document.getElementById("outputLog");
+    const creditDisplay = document.getElementById("creditDisplay");
+
+    function log(msg) {
+      output.textContent = typeof msg === "object" ? JSON.stringify(msg, null, 2) : msg;
+    }
+
+    // 1. Fetch Credit Check
+    document.getElementById("btnCheckFetch").onclick = async () => {
+      try {
+        log("Sending fetch to /api/user/credits...");
+        const res = await fetch("/api/user/credits", {
+          headers: { "X-Test-Client": "MockApp/1.0" }
+        });
+        const data = await res.json();
+        log(data);
+
+        if (data.credits === 0) {
+          creditDisplay.textContent = "0 Credits (Exhausted)";
+          creditDisplay.className = "badge warn";
+        } else if (data.unlimited) {
+          creditDisplay.textContent = "Unlimited Credits";
+          creditDisplay.className = "badge";
+        } else {
+          creditDisplay.textContent = `${data.credits || data.remaining || 50} Credits`;
+          creditDisplay.className = "badge";
+        }
+      } catch (err) {
+        log("Fetch Error: " + err.message);
+        creditDisplay.textContent = "Fetch Error";
+        creditDisplay.className = "badge err";
+      }
+    };
+
+    // 2. XHR Credit Check
+    document.getElementById("btnCheckXHR").onclick = () => {
+      log("Sending XHR to /api/limits...");
+      const xhr = new XMLHttpRequest();
+      xhr.open("GET", "/api/limits");
+      xhr.setRequestHeader("X-Client-Type", "TestHarness");
+      xhr.onload = () => {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          log(data);
+          creditDisplay.textContent = `Status: ${xhr.status}`;
+        } catch (_) {
+          log("Response text: " + xhr.responseText);
+        }
+      };
+      xhr.onerror = () => log("XHR Network Error");
+      xhr.send();
+    };
+
+    // 3. Generate Request
+    document.getElementById("btnGenerate").onclick = async () => {
+      const prompt = document.getElementById("promptInput").value;
+      log("Submitting generation request to /api/generate...");
+      try {
+        const res = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt, duration: 30, resolution: "1080p" }),
+        });
+        const data = await res.json();
+        log(data);
+      } catch (err) {
+        log("Generation Error: " + err.message);
+      }
+    };
+  </script>
+</body>
+
+</html>

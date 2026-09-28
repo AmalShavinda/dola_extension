@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "hello_dola — Security Testing & HEVC Harness",
+  "version": "2.0.0",
+  "description": "Authorized security-testing harness and HEVC extraction tool for locally controlled test environments.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": [
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "http://localhost:*/*",
+    "http://127.0.0.1:*/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Security Testing & HEVC Harness"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "http://localhost:*/*",
+        "http://127.0.0.1:*/*",
+        "<all_urls>"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["inpage-interceptor.js"],
+      "matches": ["http://localhost/*", "http://127.0.0.1/*", "http://localhost:*/*", "http://127.0.0.1:*/*"]
+    }
+  ]
+}

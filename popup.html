@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="hello_dola — Security Testing Harness & HEVC Decoder">
+  <link rel="stylesheet" href="popup.css">
+  <title>Security Testing & HEVC Harness</title>
+</head>
+<body>
+
+  <!-- ── Header ─────────────────────────────────── -->
+  <header>
+    <div class="brand">
+      <span class="brand-icon">🛡️</span>
+      <h1>Security Harness</h1>
+    </div>
+    <span class="security-badge" id="harnessStatusBadge">OBSERVE MODE</span>
+  </header>
+
+  <!-- ── Security Test Mode Banner ──────────────── -->
+  <section class="test-mode-card" id="testModeCard">
+    <div class="test-mode-row">
+      <div class="test-mode-left">
+        <label class="toggle-label" for="harnessMasterToggle">
+          <input type="checkbox" id="harnessMasterToggle" checked>
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-text">Interception Active</span>
+        </label>
+      </div>
+      <select id="harnessModeSelect" class="harness-select" title="Interception Mode">
+        <option value="observe">Mode: Observe (Read-only)</option>
+        <option value="modify">Mode: Modify (Mock Scenarios)</option>
+        <option value="disabled">Mode: Disabled</option>
+      </select>
+    </div>
+    <div class="test-mode-banner" id="testModeBanner">
+      SECURITY TEST MODE — Localhost / 127.0.0.1 Authorized Targets Only
+    </div>
+  </section>
+
+  <!-- ── Tabs ───────────────────────────────────── -->
+  <div class="tabs" role="tablist">
+    <button class="tab active" id="tab-traffic" role="tab" aria-selected="true"  data-tab="traffic">Traffic <span class="tab-count" id="trafficCount">0</span></button>
+    <button class="tab"        id="tab-simulate" role="tab" aria-selected="false" data-tab="simulate">Simulate</button>
+    <button class="tab"        id="tab-hevc"     role="tab" aria-selected="false" data-tab="hevc">HEVC Decode</button>
+    <button class="tab"        id="tab-queue"    role="tab" aria-selected="false" data-tab="queue">Queue</button>
+    <button class="tab"        id="tab-audit"    role="tab" aria-selected="false" data-tab="audit">Audit Log</button>
+  </div>
+
+  <!-- ── Tab 1: Traffic Log ─────────────────────── -->
+  <div class="tab-pane active" id="pane-traffic">
+    <div class="pane-actions">
+      <span class="section-hint">Live intercepted fetch/XHR network traffic.</span>
+      <button id="clearTraffic" class="pill-btn">Clear</button>
+    </div>
+    <div class="traffic-container">
+      <table class="traffic-table" id="trafficTable">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Method</th>
+            <th>URL</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody id="trafficTableBody">
+          <tr><td colspan="4" class="empty-state">No requests intercepted yet. Ensure you are on http://localhost or http://127.0.0.1</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Inspector Modal / Detail Drawer -->
+    <div class="payload-drawer" id="payloadDrawer" style="display: none;">
+      <div class="drawer-header">
+        <span id="drawerTitle">Request Details</span>
+        <button id="closeDrawer" class="remove-btn">✕</button>
+      </div>
+      <div class="drawer-body">
+        <div class="detail-group">
+          <strong>Endpoint:</strong> <span id="detailUrl" class="mono-text"></span>
+        </div>
+        <div class="detail-group">
+          <strong>Request Payload:</strong>
+          <pre id="detailReqPayload" class="code-preview"></pre>
+        </div>
+        <div class="detail-group">
+          <strong>Response Payload:</strong>
+          <pre id="detailResPayload" class="code-preview"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tab 2: Simulate (Mock Credit & Limit Testing) ── -->
+  <div class="tab-pane" id="pane-simulate">
+    <span class="section-hint">Test client-side handling against simulated responses on allowlisted endpoints.</span>
+    
+    <div class="scenario-grid">
+      <label class="scenario-card">
+        <input type="radio" name="scenarioRadio" value="none" checked>
+        <div class="scenario-info">
+          <strong>Pass-Through (No Mock)</strong>
+          <p>Real server responses pass through unmodified.</p>
+        </div>
+      </label>
+
+      <label class="scenario-card">
+        <input type="radio" name="scenarioRadio" value="zero_credits">
+        <div class="scenario-info">
+          <strong>Zero Credits Balance</strong>
+          <p>Returns 200 OK with credits: 0 and status: 'exhausted'.</p>
+        </div>
+      </label>
+
+      <label class="scenario-card">
+        <input type="radio" name="scenarioRadio" value="expired_credits">
+        <div class="scenario-info">
+          <strong>Expired Credits / Plan</strong>
+          <p>Returns 403 Forbidden with CREDITS_EXPIRED error code.</p>
+        </div>
+      </label>
+
+      <label class="scenario-card">
+        <input type="radio" name="scenarioRadio" value="server_rejection">
+        <div class="scenario-info">
+          <strong>Server Rejection (HTTP 402)</strong>
+          <p>Returns 402 Payment Required on generation requests.</p>
+        </div>
+      </label>
+
+      <label class="scenario-card">
+        <input type="radio" name="scenarioRadio" value="malformed_json">
+        <div class="scenario-info">
+          <strong>Malformed Response Syntax</strong>
+          <p>Injects syntax-corrupted payload to test client resilience.</p>
+        </div>
+      </label>
+
+      <label class="scenario-card">
+        <input type="radio" name="scenarioRadio" value="unlimited_credits">
+        <div class="scenario-info">
+          <strong>Simulated Unlimited Tier</strong>
+          <p>Returns 200 OK with 999,999 credits for local UI flow testing.</p>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <!-- ── Tab 3: HEVC Extractor & Decoder ────────── -->
+  <div class="tab-pane" id="pane-hevc">
+    <span class="section-hint">Inspect HEVC (H.265) streams & decode frames using WebCodecs API.</span>
+
+    <div class="hevc-upload-box">
+      <input type="file" id="hevcFileInput" accept=".mp4,.h265,.hevc">
+      <label for="hevcFileInput" class="file-label">Choose Test MP4 Video...</label>
+    </div>
+
+    <div id="hevcMetadataCard" class="hevc-meta-card" style="display: none;">
+      <div class="hevc-meta-header">
+        <span class="tpl-tag t2v" id="hevcCodecBadge">HVC1</span>
+        <span id="hevcWebCodecsStatus" class="mode-badge">Checking WebCodecs...</span>
+      </div>
+      <table class="meta-table">
+        <tr><td>Resolution:</td><td id="metaRes" class="mono-text">—</td></tr>
+        <tr><td>Profile & Tier:</td><td id="metaProfile" class="mono-text">—</td></tr>
+        <tr><td>Level:</td><td id="metaLevel" class="mono-text">—</td></tr>
+        <tr><td>Codec String:</td><td id="metaCodecStr" class="mono-text">—</td></tr>
+        <tr><td>Duration:</td><td id="metaDuration" class="mono-text">—</td></tr>
+      </table>
+    </div>
+
+    <!-- Canvas Frame Preview -->
+    <div class="canvas-preview-box" id="canvasPreviewBox" style="display: none;">
+      <span class="inline-label">Frame Preview (Canvas):</span>
+      <canvas id="hevcCanvas" class="hevc-canvas"></canvas>
+      <div class="bar">
+        <button id="exportFrameBtn" class="pill-btn">Export Frame PNG</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tab 4: Generation Queue ────────────────── -->
+  <div class="tab-pane" id="pane-queue">
+    <div class="add-row">
+      <label for="bulk">Test Prompt Queue <span class="muted">(Local target execution)</span></label>
+      <div class="cost-row">
+        <label class="inline-label" for="costPerVideo">Cost:</label>
+        <input id="costPerVideo" type="number" min="1" max="999" value="8" class="credit-input small">
+      </div>
+    </div>
+    <textarea id="bulk" rows="3" placeholder="Enter test prompt..."></textarea>
+    <button id="add" class="secondary full-w">Add to Queue</button>
+
+    <div class="queue-header" id="queueHeader">
+      <span id="progress">0 of 0 done</span>
+      <span id="budgetLeft" class="budget-tag ok">Local Test Queue</span>
+    </div>
+    <ul id="list"></ul>
+
+    <div class="bar">
+      <button id="insert" class="primary" disabled>Insert Prompt</button>
+      <button id="copy" class="secondary">Copy</button>
+    </div>
+    <p id="msg" role="status"></p>
+    <div class="link-row">
+      <button id="reset" class="link">Mark undone</button>
+      <button id="clear" class="link">Clear queue</button>
+    </div>
+  </div>
+
+  <!-- ── Tab 5: Audit Log & JSON Export ─────────── -->
+  <div class="tab-pane" id="pane-audit">
+    <div class="pane-actions">
+      <span class="section-hint">Structured audit log of events and simulated scenarios.</span>
+      <button id="exportAuditJson" class="pill-btn primary">Export JSON</button>
+    </div>
+    <ul id="auditLogList" class="history-list"></ul>
+    <p id="emptyAudit" class="empty-state">No security test events logged yet.</p>
+  </div>
+
+  <!-- ── Footer ─────────────────────────────────── -->
+  <footer>
+    <span>hello_dola · Security Testing Harness · Localhost Scoped</span>
+  </footer>
+
+  <script src="hevc-decoder.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
